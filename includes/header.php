@@ -11,17 +11,17 @@
 <body>
     <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
         <div class="container">
-            <a class="navbar-brand" href="/">Tra cứu vi phạm giao thông</a>
+            <a class="navbar-brand" href="/btl_web_php">Tra cứu vi phạm giao thông</a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav me-auto">
                     <li class="nav-item">
-                        <a class="nav-link" href="/">Trang chủ</a>
+                        <a class="nav-link" href="/btl_web_php">Trang chủ</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="/search.php">Tra cứu vi phạm</a>
+                        <a class="nav-link" href="/btl_web_php/search.php">Tra cứu vi phạm</a>
                     </li>
                 </ul>
                 <ul class="navbar-nav">

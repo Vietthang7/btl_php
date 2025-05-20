@@ -6,217 +6,226 @@ include_once '../includes/functions.php';
 // Kiểm tra đăng nhập
 requireLogin();
 
-// Lấy thống kê theo trạng thái
-$stmt = $conn->query("SELECT status, COUNT(*) as count, SUM(fine_amount) as total 
-                      FROM violations GROUP BY status ORDER BY FIELD(status, 'Unpaid', 'Processing', 'Paid')");
-$status_stats = $stmt->fetchAll(PDO::FETCH_ASSOC);
+// Lấy số liệu thống kê
+// Vi phạm theo trạng thái
+$stmt = $conn->query("SELECT status, COUNT(*) as count FROM violations GROUP BY status");
+$statusData = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-// Lấy thống kê theo loại phương tiện
-$stmt = $conn->query("SELECT v.vehicle_type, COUNT(vio.id) as violation_count, SUM(vio.fine_amount) as total_fine
-                      FROM vehicles v
-                      LEFT JOIN violations vio ON v.id = vio.vehicle_id
-                      GROUP BY v.vehicle_type
-                      ORDER BY violation_count DESC");
-$vehicle_type_stats = $stmt->fetchAll(PDO::FETCH_ASSOC);
+// Vi phạm theo loại phương tiện
+$stmt = $conn->query("SELECT v.vehicle_type, COUNT(*) as count FROM violations vio 
+                    JOIN vehicles v ON vio.vehicle_id = v.id 
+                    GROUP BY v.vehicle_type");
+$vehicleTypeData = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-// Lấy thống kê theo thời gian (6 tháng gần nhất)
-$stmt = $conn->query("SELECT DATE_FORMAT(violation_date, '%Y-%m') as month, COUNT(*) as count, SUM(fine_amount) as total
-                      FROM violations 
-                      WHERE violation_date >= DATE_SUB(CURDATE(), INTERVAL 6 MONTH)
-                      GROUP BY DATE_FORMAT(violation_date, '%Y-%m')
-                      ORDER BY month ASC");
-$time_stats = $stmt->fetchAll(PDO::FETCH_ASSOC);
+// Vi phạm theo thời gian (6 tháng gần đây)
+$stmt = $conn->query("SELECT DATE_FORMAT(violation_date, '%Y-%m') as month, COUNT(*) as count 
+                    FROM violations 
+                    WHERE violation_date >= DATE_SUB(CURRENT_DATE(), INTERVAL 6 MONTH)
+                    GROUP BY DATE_FORMAT(violation_date, '%Y-%m')
+                    ORDER BY month ASC");
+$timeData = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-// Lấy thống kê vi phạm phổ biến
-$stmt = $conn->query("SELECT violation_type, COUNT(*) as count, SUM(fine_amount) as total_fine
-                      FROM violations 
-                      GROUP BY violation_type
-                      ORDER BY count DESC
-                      LIMIT 10");
-$common_violations = $stmt->fetchAll(PDO::FETCH_ASSOC);
+// Vi phạm theo loại vi phạm
+$stmt = $conn->query("SELECT violation_type, COUNT(*) as count FROM violations GROUP BY violation_type ORDER BY count DESC LIMIT 10");
+$violationTypeData = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
+// Layout
 $pageTitle = "Báo cáo thống kê";
 include_once 'layout/header.php';
 ?>
 
 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-    <h1 class="h2">Báo cáo thống kê</h1>
+    <h1 class="h2"><i class="fas fa-chart-bar text-primary me-2"></i>Báo cáo thống kê</h1>
     <div class="btn-toolbar mb-2 mb-md-0">
         <div class="btn-group me-2">
-            <button type="button" class="btn btn-sm btn-outline-secondary btn-print">
-                <i class="fas fa-print"></i> In báo cáo
+            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="window.print()">
+                <i class="fas fa-print me-1"></i> In báo cáo
+            </button>
+            <button type="button" class="btn btn-sm btn-outline-secondary" id="exportBtn">
+                <i class="fas fa-download me-1"></i> Xuất PDF
             </button>
         </div>
+        <div class="dropdown">
+            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                <i class="fas fa-calendar me-1"></i> Thời gian
+            </button>
+            <ul class="dropdown-menu">
+                <li><a class="dropdown-item" href="#">Tuần này</a></li>
+                <li><a class="dropdown-item" href="#">Tháng này</a></li>
+                <li><a class="dropdown-item active" href="#">6 tháng gần đây</a></li>
+                <li><a class="dropdown-item" href="#">Năm nay</a></li>
+            </ul>
+        </div>
     </div>
 </div>
 
-<?php displayFlashMessage(); ?>
-
-<div class="row">
+<div class="row mb-4">
     <div class="col-md-6 mb-4">
         <div class="card h-100">
-            <div class="card-header bg-primary text-white">
-                <h5 class="mb-0">Thống kê theo trạng thái</h5>
+            <div class="card-header bg-white">
+                <h5 class="mb-0 text-primary"><i class="fas fa-chart-pie me-2"></i>Vi phạm theo trạng thái</h5>
             </div>
             <div class="card-body">
-                <canvas id="statusChart" height="250"></canvas>
-                <div class="table-responsive mt-3">
-                    <table class="table table-striped table-sm">
-                        <thead>
-                            <tr>
-                                <th>Trạng thái</th>
-                                <th class="text-center">Số lượng</th>
-                                <th class="text-end">Tổng tiền phạt</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php foreach ($status_stats as $stat): ?>
-                                <tr>
-                                    <td>
-                                        <?php 
-                                        if ($stat['status'] == 'Unpaid') echo 'Chưa nộp phạt';
-                                        elseif ($stat['status'] == 'Processing') echo 'Đang xử lý';
-                                        elseif ($stat['status'] == 'Paid') echo 'Đã nộp phạt';
-                                        ?>
-                                    </td>
-                                    <td class="text-center"><?php echo number_format($stat['count']); ?></td>
-                                    <td class="text-end"><?php echo formatMoney($stat['total']); ?></td>
-                                </tr>
-                            <?php endforeach; ?>
-                        </tbody>
-                    </table>
-                </div>
+                <canvas id="statusChart" width="400" height="300"></canvas>
             </div>
         </div>
     </div>
-    
     <div class="col-md-6 mb-4">
         <div class="card h-100">
-            <div class="card-header bg-success text-white">
-                <h5 class="mb-0">Thống kê theo loại phương tiện</h5>
+            <div class="card-header bg-white">
+                <h5 class="mb-0 text-success"><i class="fas fa-car me-2"></i>Vi phạm theo loại phương tiện</h5>
             </div>
             <div class="card-body">
-                <canvas id="vehicleTypeChart" height="250"></canvas>
-                <div class="table-responsive mt-3">
-                    <table class="table table-striped table-sm">
-                        <thead>
-                            <tr>
-                                <th>Loại phương tiện</th>
-                                <th class="text-center">Số vi phạm</th>
-                                <th class="text-end">Tổng tiền phạt</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php foreach ($vehicle_type_stats as $stat): ?>
-                                <tr>
-                                    <td>
-                                        <?php 
-                                        $vehicle_type_map = [
-                                            'Car' => 'Ô tô',
-                                            'Motorcycle' => 'Xe máy',
-                                            'Truck' => 'Xe tải',
-                                            'Bus' => 'Xe khách',
-                                            'Other' => 'Khác'
-                                        ];
-                                        echo $vehicle_type_map[$stat['vehicle_type']] ?? $stat['vehicle_type'];
-                                        ?>
-                                    </td>
-                                    <td class="text-center"><?php echo number_format($stat['violation_count']); ?></td>
-                                    <td class="text-end"><?php echo formatMoney($stat['total_fine']); ?></td>
-                                </tr>
-                            <?php endforeach; ?>
-                        </tbody>
-                    </table>
-                </div>
+                <canvas id="vehicleTypeChart" width="400" height="300"></canvas>
             </div>
         </div>
     </div>
 </div>
 
-<div class="row">
-    <div class="col-md-12 mb-4">
-        <div class="card">
-            <div class="card-header bg-info text-white">
-                <h5 class="mb-0">Thống kê theo thời gian (6 tháng gần nhất)</h5>
+<div class="row mb-4">
+    <div class="col-md-8 mb-4">
+        <div class="card h-100">
+            <div class="card-header bg-white">
+                <h5 class="mb-0 text-primary"><i class="fas fa-chart-line me-2"></i>Vi phạm theo thời gian (6 tháng gần đây)</h5>
             </div>
             <div class="card-body">
-                <canvas id="timeChart" height="100"></canvas>
+                <canvas id="timeChart" width="400" height="300"></canvas>
             </div>
         </div>
     </div>
-</div>
-
-<div class="row">
-    <div class="col-md-12 mb-4">
-        <div class="card">
-            <div class="card-header bg-danger text-white">
-                <h5 class="mb-0">Top 10 vi phạm phổ biến</h5>
+    <div class="col-md-4 mb-4">
+        <div class="card h-100">
+            <div class="card-header bg-white">
+                <h5 class="mb-0 text-danger"><i class="fas fa-exclamation-triangle me-2"></i>Top loại vi phạm</h5>
             </div>
             <div class="card-body">
                 <div class="table-responsive">
-                    <table class="table table-striped">
+                    <table class="table table-hover">
                         <thead>
                             <tr>
-                                <th>STT</th>
                                 <th>Loại vi phạm</th>
-                                <th class="text-center">Số lượng</th>
-                                <th class="text-end">Tổng tiền phạt</th>
-                                <th class="text-center">Tỷ lệ</th>
+                                <th>Số lượng</th>
                             </tr>
                         </thead>
                         <tbody>
-                            <?php 
-                            $total_violations = array_sum(array_column($common_violations, 'count'));
-                            foreach ($common_violations as $index => $violation): 
-                            ?>
+                            <?php foreach ($violationTypeData as $type): ?>
                                 <tr>
-                                    <td><?php echo $index + 1; ?></td>
-                                    <td><?php echo htmlspecialchars($violation['violation_type']); ?></td>
-                                    <td class="text-center"><?php echo number_format($violation['count']); ?></td>
-                                    <td class="text-end"><?php echo formatMoney($violation['total_fine']); ?></td>
-                                    <td class="text-center">
-                                        <?php 
-                                        $percentage = ($violation['count'] / $total_violations) * 100;
-                                        echo number_format($percentage, 1) . '%';
-                                        ?>
-                                        <div class="progress mt-1" style="height: 5px;">
-                                            <div class="progress-bar bg-danger" style="width: <?php echo $percentage; ?>%"></div>
-                                        </div>
-                                    </td>
+                                    <td><?php echo htmlspecialchars($type['violation_type']); ?></td>
+                                    <td class="fw-bold"><?php echo number_format($type['count']); ?></td>
                                 </tr>
                             <?php endforeach; ?>
                         </tbody>
                     </table>
                 </div>
             </div>
+        </div>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header bg-white">
+        <h5 class="mb-0 text-primary"><i class="fas fa-table me-2"></i>Tổng hợp báo cáo</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-bordered table-hover">
+                <thead class="table-light">
+                    <tr>
+                        <th>Chỉ số</th>
+                        <th>Dữ liệu</th>
+                        <th>Tỷ lệ</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php 
+                    // Tính tổng số vi phạm
+                    $totalViolations = 0;
+                    foreach ($statusData as $status) {
+                        $totalViolations += $status['count'];
+                    }
+                    
+                    // Hiển thị dữ liệu
+                    foreach ($statusData as $status): 
+                        $percentage = ($totalViolations > 0) ? ($status['count'] / $totalViolations * 100) : 0;
+                        $statusText = '';
+                        $badgeClass = '';
+                        
+                        switch ($status['status']) {
+                            case 'Paid':
+                                $statusText = 'Đã nộp phạt';
+                                $badgeClass = 'bg-success';
+                                break;
+                            case 'Unpaid':
+                                $statusText = 'Chưa nộp phạt';
+                                $badgeClass = 'bg-danger';
+                                break;
+                            case 'Processing':
+                                $statusText = 'Đang xử lý';
+                                $badgeClass = 'bg-warning';
+                                break;
+                            default:
+                                $statusText = $status['status'];
+                                $badgeClass = 'bg-secondary';
+                        }
+                    ?>
+                        <tr>
+                            <td><span class="badge <?php echo $badgeClass; ?>"><?php echo $statusText; ?></span></td>
+                            <td><?php echo number_format($status['count']); ?> vi phạm</td>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    <div class="progress flex-grow-1 me-2" style="height: 10px;">
+                                        <div class="progress-bar <?php echo $badgeClass; ?>" style="width: <?php echo $percentage; ?>%"></div>
+                                    </div>
+                                    <span><?php echo number_format($percentage, 1); ?>%</span>
+                                </div>
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
         </div>
     </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Chart cho thống kê theo trạng thái
-    var statusLabels = [];
-    var statusData = [];
-    var statusColors = [];
+// Đợi trang tải hoàn toàn trước khi thực thi script
+window.addEventListener('load', function() {
+    // Chuẩn bị dữ liệu cho biểu đồ trạng thái
+    const statusLabels = [];
+    const statusData = [];
+    const statusColors = [];
     
-    <?php foreach ($status_stats as $stat): ?>
-        <?php if ($stat['status'] == 'Unpaid'): ?>
-            statusLabels.push('Chưa nộp phạt');
-            statusColors.push('rgba(220, 53, 69, 0.8)');
-        <?php elseif ($stat['status'] == 'Processing'): ?>
-            statusLabels.push('Đang xử lý');
-            statusColors.push('rgba(255, 193, 7, 0.8)');
-        <?php elseif ($stat['status'] == 'Paid'): ?>
-            statusLabels.push('Đã nộp phạt');
-            statusColors.push('rgba(40, 167, 69, 0.8)');
-        <?php endif; ?>
-        statusData.push(<?php echo $stat['count']; ?>);
-    <?php endforeach; ?>
+    <?php 
+    foreach ($statusData as $status) {
+        $color = '';
+        $label = '';
+        switch ($status['status']) {
+            case 'Paid':
+                $color = 'rgba(46, 204, 113, 0.8)';
+                $label = 'Đã nộp phạt';
+                break;
+            case 'Unpaid':
+                $color = 'rgba(231, 76, 60, 0.8)';
+                $label = 'Chưa nộp phạt';
+                break;
+            case 'Processing':
+                $color = 'rgba(243, 156, 18, 0.8)';
+                $label = 'Đang xử lý';
+                break;
+            default:
+                $color = 'rgba(52, 152, 219, 0.8)';
+                $label = $status['status'];
+        }
+        echo "statusLabels.push('$label');";
+        echo "statusData.push(" . $status['count'] . ");";
+        echo "statusColors.push('$color');";
+    }
+    ?>
     
-    var statusCtx = document.getElementById('statusChart').getContext('2d');
-    var statusChart = new Chart(statusCtx, {
+    // Biểu đồ trạng thái
+    const statusCtx = document.getElementById('statusChart').getContext('2d');
+    const statusChart = new Chart(statusCtx, {
         type: 'pie',
         data: {
             labels: statusLabels,
@@ -227,6 +236,9 @@ document.addEventListener('DOMContentLoaded', function() {
             }]
         },
         options: {
+            animation: {
+                duration: 0 // Tắt animation để tránh scroll
+            },
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
@@ -237,130 +249,94 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     
-    // Chart cho thống kê theo loại phương tiện
-    var vehicleTypeLabels = [];
-    var vehicleTypeData = [];
-    var vehicleTypeColors = [
-        'rgba(54, 162, 235, 0.8)',
-        'rgba(255, 99, 132, 0.8)',
-        'rgba(255, 159, 64, 0.8)',
-        'rgba(75, 192, 192, 0.8)',
-        'rgba(153, 102, 255, 0.8)'
-    ];
+    // Biểu đồ loại phương tiện
+    const vehicleLabels = [];
+    const vehicleData = [];
+    const vehicleColors = ['rgba(52, 152, 219, 0.8)', 'rgba(155, 89, 182, 0.8)', 'rgba(52, 73, 94, 0.8)', 'rgba(22, 160, 133, 0.8)'];
     
-    <?php foreach ($vehicle_type_stats as $stat): ?>
-        <?php 
-        $vehicle_type_map = [
-            'Car' => 'Ô tô',
-            'Motorcycle' => 'Xe máy',
-            'Truck' => 'Xe tải',
-            'Bus' => 'Xe khách',
-            'Other' => 'Khác'
-        ];
-        $label = $vehicle_type_map[$stat['vehicle_type']] ?? $stat['vehicle_type'];
-        ?>
-        vehicleTypeLabels.push('<?php echo $label; ?>');
-        vehicleTypeData.push(<?php echo $stat['violation_count']; ?>);
-    <?php endforeach; ?>
+    <?php 
+    $i = 0;
+    foreach ($vehicleTypeData as $vehicle) {
+        echo "vehicleLabels.push('" . $vehicle['vehicle_type'] . "');";
+        echo "vehicleData.push(" . $vehicle['count'] . ");";
+        $i++;
+    }
+    ?>
     
-    var vehicleTypeCtx = document.getElementById('vehicleTypeChart').getContext('2d');
-    var vehicleTypeChart = new Chart(vehicleTypeCtx, {
-        type: 'doughnut',
+    const vehicleCtx = document.getElementById('vehicleTypeChart').getContext('2d');
+    const vehicleChart = new Chart(vehicleCtx, {
+        type: 'bar',
         data: {
-            labels: vehicleTypeLabels,
+            labels: vehicleLabels,
             datasets: [{
-                data: vehicleTypeData,
-                backgroundColor: vehicleTypeColors,
+                label: 'Số vi phạm',
+                data: vehicleData,
+                backgroundColor: vehicleColors,
                 borderWidth: 1
             }]
         },
         options: {
+            animation: {
+                duration: 0 // Tắt animation để tránh scroll
+            },
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
                 legend: {
-                    position: 'bottom'
+                    display: false
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true
                 }
             }
         }
     });
     
-    // Chart cho thống kê theo thời gian
-    var timeLabels = [];
-    var timeData = [];
-    var fineData = [];
+    // Biểu đồ thời gian
+    const timeLabels = [];
+    const timeData = [];
     
-    <?php foreach ($time_stats as $stat): ?>
-        <?php
-        // Chuyển đổi định dạng tháng từ yyyy-mm sang mm/yyyy
-        $date = DateTime::createFromFormat('Y-m', $stat['month']);
-        $formatted_month = $date ? $date->format('m/Y') : $stat['month'];
-        ?>
-        timeLabels.push('<?php echo $formatted_month; ?>');
-        timeData.push(<?php echo $stat['count']; ?>);
-        fineData.push(<?php echo $stat['total']; ?>);
-    <?php endforeach; ?>
+    <?php 
+    foreach ($timeData as $time) {
+        // Chuyển đổi YYYY-MM sang định dạng tháng/năm
+        $date = date_create_from_format('Y-m', $time['month']);
+        $formatted = date_format($date, 'm/Y');
+        echo "timeLabels.push('$formatted');";
+        echo "timeData.push(" . $time['count'] . ");";
+    }
+    ?>
     
-    var timeCtx = document.getElementById('timeChart').getContext('2d');
-    var timeChart = new Chart(timeCtx, {
-        type: 'bar',
+    const timeCtx = document.getElementById('timeChart').getContext('2d');
+    const timeChart = new Chart(timeCtx, {
+        type: 'line',
         data: {
             labels: timeLabels,
-            datasets: [
-                {
-                    label: 'Số vi phạm',
-                    data: timeData,
-                    backgroundColor: 'rgba(54, 162, 235, 0.5)',
-                    borderColor: 'rgba(54, 162, 235, 1)',
-                    borderWidth: 1,
-                    yAxisID: 'y'
-                },
-                {
-                    label: 'Tiền phạt (VNĐ)',
-                    data: fineData,
-                    type: 'line',
-                    fill: false,
-                    backgroundColor: 'rgba(255, 99, 132, 0.5)',
-                    borderColor: 'rgba(255, 99, 132, 1)',
-                    borderWidth: 2,
-                    pointRadius: 4,
-                    yAxisID: 'y1'
-                }
-            ]
+            datasets: [{
+                label: 'Số vi phạm',
+                data: timeData,
+                borderColor: 'rgba(52, 152, 219, 1)',
+                backgroundColor: 'rgba(52, 152, 219, 0.2)',
+                borderWidth: 2,
+                fill: true,
+                tension: 0.3
+            }]
         },
         options: {
+            animation: {
+                duration: 0 // Tắt animation để tránh scroll
+            },
             responsive: true,
             maintainAspectRatio: false,
-            interaction: {
-                mode: 'index',
-                intersect: false,
+            plugins: {
+                legend: {
+                    display: false
+                }
             },
             scales: {
                 y: {
-                    type: 'linear',
-                    display: true,
-                    position: 'left',
-                    title: {
-                        display: true,
-                        text: 'Số vi phạm'
-                    }
-                },
-                y1: {
-                    type: 'linear',
-                    display: true,
-                    position: 'right',
-                    grid: {
-                        drawOnChartArea: false,
-                    },
-                    title: {
-                        display: true,
-                        text: 'Tiền phạt (VNĐ)'
-                    },
-                    ticks: {
-                        callback: function(value, index, values) {
-                            return value.toLocaleString() + ' VNĐ';
-                        }
-                    }
+                    beginAtZero: true
                 }
             }
         }
