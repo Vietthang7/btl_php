@@ -89,9 +89,9 @@ include_once 'layout/header.php';
     <h1 class="h2">Quản lý phương tiện</h1>
     <div class="btn-toolbar mb-2 mb-md-0">
         <div class="btn-group me-2">
-            <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#addVehicleModal">
+            <a href="add_vehicle_form.php" class="btn btn-sm btn-outline-primary">
                 <i class="fas fa-plus"></i> Thêm phương tiện
-            </button>
+            </a>
         </div>
     </div>
 </div>
@@ -171,79 +171,17 @@ include_once 'layout/header.php';
                                 <td><?php echo date('d/m/Y', strtotime($vehicle['created_at'])); ?></td>
                                 <td>
                                     <div class="btn-group">
-                                        <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editVehicleModal<?php echo $vehicle['id']; ?>">
+                                        <a href="edit_vehicle_form.php?id=<?php echo $vehicle['id']; ?>" class="btn btn-sm btn-outline-primary">
                                             <i class="fas fa-edit"></i>
-                                        </button>
+                                        </a>
                                         <a href="add_violation.php?license_plate=<?php echo urlencode($vehicle['license_plate']); ?>" class="btn btn-sm btn-outline-danger">
                                             <i class="fas fa-plus-circle"></i>
                                         </a>
                                         <?php if ($vehicle['violation_count'] == 0): ?>
-                                            <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#deleteVehicleModal<?php echo $vehicle['id']; ?>">
+                                            <a href="javascript:void(0);" onclick="if(confirm('Bạn có chắc chắn muốn xóa phương tiện này?')) window.location.href='manage_vehicles.php?action=delete&id=<?php echo $vehicle['id']; ?>'" class="btn btn-sm btn-outline-secondary">
                                                 <i class="fas fa-trash-alt"></i>
-                                            </button>
+                                            </a>
                                         <?php endif; ?>
-                                    </div>
-                                    
-                                    <!-- Modal Sửa phương tiện -->
-                                    <div class="modal fade" id="editVehicleModal<?php echo $vehicle['id']; ?>" tabindex="-1" aria-hidden="true">
-                                        <div class="modal-dialog">
-                                            <div class="modal-content">
-                                                <div class="modal-header bg-primary text-white">
-                                                    <h5 class="modal-title">Sửa thông tin phương tiện</h5>
-                                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                                                </div>
-                                                <div class="modal-body">
-                                                    <form action="edit_vehicle.php" method="POST">
-                                                        <input type="hidden" name="id" value="<?php echo $vehicle['id']; ?>">
-                                                        
-                                                        <div class="mb-3">
-                                                            <label for="license_plate<?php echo $vehicle['id']; ?>" class="form-label">Biển số xe</label>
-                                                            <input type="text" class="form-control" id="license_plate<?php echo $vehicle['id']; ?>" name="license_plate" value="<?php echo htmlspecialchars($vehicle['license_plate']); ?>" required>
-                                                        </div>
-                                                        
-                                                        <div class="mb-3">
-                                                            <label for="owner_name<?php echo $vehicle['id']; ?>" class="form-label">Chủ phương tiện</label>
-                                                            <input type="text" class="form-control" id="owner_name<?php echo $vehicle['id']; ?>" name="owner_name" value="<?php echo htmlspecialchars($vehicle['owner_name']); ?>" required>
-                                                        </div>
-                                                        
-                                                        <div class="mb-3">
-                                                            <label for="vehicle_type<?php echo $vehicle['id']; ?>" class="form-label">Loại phương tiện</label>
-                                                            <select class="form-select" id="vehicle_type<?php echo $vehicle['id']; ?>" name="vehicle_type" required>
-                                                                <option value="Car" <?php echo $vehicle['vehicle_type'] == 'Car' ? 'selected' : ''; ?>>Ô tô</option>
-                                                                <option value="Motorcycle" <?php echo $vehicle['vehicle_type'] == 'Motorcycle' ? 'selected' : ''; ?>>Xe máy</option>
-                                                                <option value="Truck" <?php echo $vehicle['vehicle_type'] == 'Truck' ? 'selected' : ''; ?>>Xe tải</option>
-                                                                <option value="Bus" <?php echo $vehicle['vehicle_type'] == 'Bus' ? 'selected' : ''; ?>>Xe khách</option>
-                                                                <option value="Other" <?php echo $vehicle['vehicle_type'] == 'Other' ? 'selected' : ''; ?>>Khác</option>
-                                                            </select>
-                                                        </div>
-                                                        
-                                                        <div class="d-grid">
-                                                            <button type="submit" class="btn btn-primary">Cập nhật</button>
-                                                        </div>
-                                                    </form>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    
-                                    <!-- Modal Xóa phương tiện -->
-                                    <div class="modal fade" id="deleteVehicleModal<?php echo $vehicle['id']; ?>" tabindex="-1" aria-hidden="true">
-                                        <div class="modal-dialog">
-                                            <div class="modal-content">
-                                                <div class="modal-header bg-danger text-white">
-                                                    <h5 class="modal-title">Xác nhận xóa</h5>
-                                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                                                </div>
-                                                <div class="modal-body">
-                                                    <p>Bạn có chắc chắn muốn xóa phương tiện có biển số <strong><?php echo htmlspecialchars($vehicle['license_plate']); ?></strong> không?</p>
-                                                    <p class="text-danger"><strong>Lưu ý:</strong> Hành động này không thể hoàn tác.</p>
-                                                </div>
-                                                <div class="modal-footer">
-                                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
-                                                    <a href="manage_vehicles.php?action=delete&id=<?php echo $vehicle['id']; ?>" class="btn btn-danger">Xác nhận xóa</a>
-                                                </div>
-                                            </div>
-                                        </div>
                                     </div>
                                 </td>
                             </tr>
@@ -307,44 +245,6 @@ include_once 'layout/header.php';
             </nav>
         </div>
     <?php endif; ?>
-</div>
-
-<!-- Modal Thêm phương tiện mới -->
-<div class="modal fade" id="addVehicleModal" tabindex="-1" aria-labelledby="addVehicleModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header bg-success text-white">
-                <h5 class="modal-title" id="addVehicleModalLabel">Thêm phương tiện mới</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <form action="add_vehicle.php" method="POST">
-                    <div class="mb-3">
-                        <label for="license_plate" class="form-label">Biển số xe <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" id="license_plate" name="license_plate" required placeholder="Nhập biển số xe (VD: 29A-12345)">
-                    </div>
-                    <div class="mb-3">
-                        <label for="owner_name" class="form-label">Chủ phương tiện <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" id="owner_name" name="owner_name" required placeholder="Nhập tên chủ phương tiện">
-                    </div>
-                    <div class="mb-3">
-                        <label for="vehicle_type" class="form-label">Loại phương tiện <span class="text-danger">*</span></label>
-                        <select class="form-select" id="vehicle_type" name="vehicle_type" required>
-                            <option value="">-- Chọn loại phương tiện --</option>
-                            <option value="Car">Ô tô</option>
-                            <option value="Motorcycle">Xe máy</option>
-                            <option value="Truck">Xe tải</option>
-                            <option value="Bus">Xe khách</option>
-                            <option value="Other">Khác</option>
-                        </select>
-                    </div>
-                    <div class="d-grid">
-                        <button type="submit" class="btn btn-success">Thêm phương tiện</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
 </div>
 
 <?php include_once 'layout/footer.php'; ?>

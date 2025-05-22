@@ -79,10 +79,12 @@ body {
 }
 
 /* Main content */
+/* Main content */
 .main-content {
-    margin-left: var(--sidebar-width);
     padding: 30px;
     transition: all 0.3s;
+    width: calc(100% - var(--sidebar-width));
+    margin-left: var(--sidebar-width);
 }
 
 /* Cards */
@@ -224,4 +226,34 @@ body {
 
 ::-webkit-scrollbar-thumb:hover {
     background: #a8a8a8;
+}
+/* Sửa lỗi navbar */
+.navbar {
+    width: 100% !important;
+}
+
+/* Đảm bảo thanh navbar kéo dài hết màn hình */
+header.navbar.sticky-top {
+    left: 0;
+    right: 0;
+    width: 100vw !important;
+    z-index: 1030;
+}
+
+/* Điều chỉnh vị trí của sidebar để không chồng lên navbar */
+.sidebar {
+    padding-top: 56px !important;
+}
+
+/* Điều chỉnh nội dung chính để tránh chồng lấp */
+.main-content {
+    position: relative;
+    margin-left: var(--sidebar-width);
+}
+
+/* Điều chỉnh cho responsive */
+@media (max-width: 768px) {
+    .main-content {
+        margin-left: 0;
+    }
 }

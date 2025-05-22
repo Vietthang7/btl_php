@@ -6,271 +6,251 @@ include_once '../includes/functions.php';
 // Kiểm tra đăng nhập
 requireLogin();
 
-$success = false;
-$error = '';
-$vehicle = null;
+// Debug để kiểm tra request được nhận hay không
+error_log("add_violation.php được truy cập, phương thức: " . $_SERVER['REQUEST_METHOD']);
 
-// Xử lý form tìm kiếm phương tiện
-if (isset($_GET['license_plate']) && !empty($_GET['license_plate'])) {
-    $license_plate = trim($_GET['license_plate']);
-    $vehicle = getVehicleByLicensePlate($conn, $license_plate);
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // Debug POST data
+    error_log("POST data nhận được: " . print_r($_POST, true));
     
-    if (!$vehicle) {
-        $error = "Không tìm thấy phương tiện với biển số '$license_plate'";
-    }
-}
-
-// Xử lý form thêm vi phạm
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_violation'])) {
-    $vehicle_id = $_POST['vehicle_id'] ?? '';
-    $violation_date = $_POST['violation_date'] ?? '';
-    $location = $_POST['location'] ?? '';
-    $violation_type = $_POST['violation_type'] ?? '';
-    $fine_amount = $_POST['fine_amount'] ?? '';
-    $status = $_POST['status'] ?? 'Unpaid';
-    $description = $_POST['description'] ?? '';
+    $vehicle_id = isset($_POST['vehicle_id']) ? (int)$_POST['vehicle_id'] : 0;
+    $violation_date = trim($_POST['violation_date'] ?? '');
+    $violation_time = trim($_POST['violation_time'] ?? '');
+    $location = trim($_POST['location'] ?? '');
+    $violation_type = trim($_POST['violation_type'] ?? '');
+    $description = trim($_POST['description'] ?? '');
+    $fine_amount = isset($_POST['fine_amount']) ? (float)$_POST['fine_amount'] : 0;
     
     // Validate
-    if (empty($vehicle_id) || empty($violation_date) || empty($location) || 
-        empty($violation_type) || empty($fine_amount)) {
-        $error = "Vui lòng điền đầy đủ thông tin bắt buộc";
-    } else {
-        try {
-            $stmt = $conn->prepare("INSERT INTO violations (vehicle_id, violation_date, location, violation_type, fine_amount, status, description) 
-                                    VALUES (:vehicle_id, :violation_date, :location, :violation_type, :fine_amount, :status, :description)");
-            $stmt->bindParam(':vehicle_id', $vehicle_id);
-            $stmt->bindParam(':violation_date', $violation_date);
-            $stmt->bindParam(':location', $location);
-            $stmt->bindParam(':violation_type', $violation_type);
-            $stmt->bindParam(':fine_amount', $fine_amount);
-            $stmt->bindParam(':status', $status);
-            $stmt->bindParam(':description', $description);
-            
-            $stmt->execute();
-            
-            $success = true;
-            setFlashMessage('success', 'Thêm vi phạm mới thành công!');
-            header('Location: manage_violations.php');
-            exit;
-        } catch (PDOException $e) {
-            $error = "Lỗi khi thêm vi phạm: " . $e->getMessage();
-        }
-    }
-}
-
-// Xử lý form thêm phương tiện mới
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_vehicle'])) {
-    $license_plate = trim($_POST['license_plate'] ?? '');
-    $owner_name = trim($_POST['owner_name'] ?? '');
-    $vehicle_type = $_POST['vehicle_type'] ?? '';
+    $errors = [];
     
-    // Validate
-    if (empty($license_plate) || empty($owner_name) || empty($vehicle_type)) {
-        $error = "Vui lòng điền đầy đủ thông tin phương tiện";
-    } else {
-        // Kiểm tra xem biển số đã tồn tại chưa
-        $stmt = $conn->prepare("SELECT id FROM vehicles WHERE license_plate = :license_plate");
-        $stmt->bindParam(':license_plate', $license_plate);
+    if (empty($vehicle_id)) {
+        $errors[] = "Vui lòng chọn phương tiện";
+    }
+    
+    if (empty($violation_date)) {
+        $errors[] = "Vui lòng chọn ngày vi phạm";
+    }
+    
+    if (empty($violation_time)) {
+        $errors[] = "Vui lòng chọn giờ vi phạm";
+    }
+    
+    if (empty($location)) {
+        $errors[] = "Vui lòng nhập địa điểm vi phạm";
+    }
+    
+    if (empty($violation_type)) {
+        $errors[] = "Vui lòng chọn loại vi phạm";
+    }
+    
+    if ($fine_amount <= 0) {
+        $errors[] = "Số tiền phạt phải lớn hơn 0";
+    }
+    
+    if (count($errors) > 0) {
+        setFlashMessage('danger', implode("<br>", $errors));
+        header('Location: ' . $_SERVER['HTTP_REFERER']);
+        exit;
+    }
+    
+    try {
+        // Kết hợp ngày và giờ
+        $violation_datetime = $violation_date . ' ' . $violation_time;
+        
+        // Thêm vi phạm
+        $stmt = $conn->prepare("
+            INSERT INTO violations 
+            (vehicle_id, violation_datetime, location, violation_type, description, fine_amount) 
+            VALUES 
+            (:vehicle_id, :violation_datetime, :location, :violation_type, :description, :fine_amount)
+        ");
+        
+        $stmt->bindParam(':vehicle_id', $vehicle_id);
+        $stmt->bindParam(':violation_datetime', $violation_datetime);
+        $stmt->bindParam(':location', $location);
+        $stmt->bindParam(':violation_type', $violation_type);
+        $stmt->bindParam(':description', $description);
+        $stmt->bindParam(':fine_amount', $fine_amount);
+        
         $stmt->execute();
         
-        if ($stmt->rowCount() > 0) {
-            $error = "Biển số xe '$license_plate' đã tồn tại trong hệ thống";
-        } else {
-            try {
-                $stmt = $conn->prepare("INSERT INTO vehicles (license_plate, owner_name, vehicle_type) VALUES (:license_plate, :owner_name, :vehicle_type)");
-                $stmt->bindParam(':license_plate', $license_plate);
-                $stmt->bindParam(':owner_name', $owner_name);
-                $stmt->bindParam(':vehicle_type', $vehicle_type);
-                
-                $stmt->execute();
-                
-                // Lấy thông tin phương tiện vừa thêm
-                $vehicle = getVehicleByLicensePlate($conn, $license_plate);
-                
-                $success = true;
-                $message = "Thêm phương tiện mới thành công!";
-            } catch (PDOException $e) {
-                $error = "Lỗi khi thêm phương tiện: " . $e->getMessage();
-            }
+        setFlashMessage('success', 'Thêm vi phạm mới thành công!');
+        header('Location: manage_violations.php');
+        exit;
+    } catch (PDOException $e) {
+        error_log("Lỗi PDO: " . $e->getMessage());
+        setFlashMessage('danger', 'Lỗi khi thêm vi phạm: ' . $e->getMessage());
+        header('Location: ' . $_SERVER['HTTP_REFERER']);
+        exit;
+    }
+} else {
+    // Lấy biển số xe nếu được truyền từ URL
+    $license_plate = trim($_GET['license_plate'] ?? '');
+    $vehicle_id = 0;
+    
+    if (!empty($license_plate)) {
+        // Tìm vehicle_id từ biển số xe
+        $stmt = $conn->prepare("SELECT id, owner_name FROM vehicles WHERE license_plate = :license_plate");
+        $stmt->bindParam(':license_plate', $license_plate);
+        $stmt->execute();
+        $vehicle = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if ($vehicle) {
+            $vehicle_id = $vehicle['id'];
         }
     }
-}
+    
+    // Lấy danh sách phương tiện để hiển thị trong form
+    $stmt = $conn->query("SELECT id, license_plate, owner_name FROM vehicles ORDER BY license_plate");
+    $vehicles = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    $pageTitle = "Thêm vi phạm mới";
+    include_once 'layout/header.php';
+    ?>
 
-$pageTitle = "Thêm vi phạm mới";
-include_once 'layout/header.php';
-?>
-
-<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-    <h1 class="h2">Thêm vi phạm mới</h1>
-</div>
-
-<?php if (!empty($error)): ?>
-    <div class="alert alert-danger alert-dismissible fade show" role="alert">
-        <?php echo $error; ?>
-        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-    </div>
-<?php endif; ?>
-
-<?php if ($success && isset($message)): ?>
-    <div class="alert alert-success alert-dismissible fade show" role="alert">
-        <?php echo $message; ?>
-        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-    </div>
-<?php endif; ?>
-
-<div class="card mb-4">
-    <div class="card-header bg-primary text-white">
-        <h5 class="mb-0">Tìm kiếm phương tiện</h5>
-    </div>
-    <div class="card-body">
-        <form action="" method="GET" class="row g-3">
-            <div class="col-md-8">
-                <input type="text" class="form-control" id="license_plate" name="license_plate" 
-                       placeholder="Nhập biển số xe (VD: 29A-12345)" 
-                       value="<?php echo isset($_GET['license_plate']) ? htmlspecialchars($_GET['license_plate']) : ''; ?>" required>
-            </div>
-            <div class="col-md-4">
-                <button type="submit" class="btn btn-primary w-100">Tìm kiếm</button>
-            </div>
-        </form>
-        
-        <div class="mt-3">
-            <button type="button" class="btn btn-outline-success" data-bs-toggle="modal" data-bs-target="#addVehicleModal">
-                <i class="fas fa-plus"></i> Thêm phương tiện mới
-            </button>
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1 class="h2">Thêm vi phạm mới</h1>
+        <div class="btn-toolbar mb-2 mb-md-0">
+            <a href="manage_violations.php" class="btn btn-sm btn-outline-secondary">
+                <i class="fas fa-arrow-left"></i> Quay lại
+            </a>
         </div>
     </div>
-</div>
-
-<?php if ($vehicle): ?>
+    
+    <?php displayFlashMessage(); ?>
+    
     <div class="card mb-4">
-        <div class="card-header bg-success text-white">
-            <h5 class="mb-0">Thông tin phương tiện</h5>
-        </div>
         <div class="card-body">
-            <div class="row">
-                <div class="col-md-6">
-                    <table class="table table-bordered">
-                        <tr>
-                            <th style="width: 200px;">ID phương tiện:</th>
-                            <td><?php echo $vehicle['id']; ?></td>
-                        </tr>
-                        <tr>
-                            <th>Biển số xe:</th>
-                            <td><strong><?php echo htmlspecialchars($vehicle['license_plate']); ?></strong></td>
-                        </tr>
-                        <tr>
-                            <th>Chủ phương tiện:</th>
-                            <td><?php echo htmlspecialchars($vehicle['owner_name']); ?></td>
-                        </tr>
-                        <tr>
-                            <th>Loại phương tiện:</th>
-                            <td><?php echo htmlspecialchars($vehicle['vehicle_type']); ?></td>
-                        </tr>
-                    </table>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="card mb-4">
-        <div class="card-header bg-danger text-white">
-            <h5 class="mb-0">Thêm thông tin vi phạm</h5>
-        </div>
-        <div class="card-body">
-            <form action="" method="POST">
-                <input type="hidden" name="vehicle_id" value="<?php echo $vehicle['id']; ?>">
-                
+            <form action="add_violation.php" method="POST" id="addViolationForm">
                 <div class="row mb-3">
                     <div class="col-md-6">
-                        <label for="violation_date" class="form-label">Thời gian vi phạm <span class="text-danger">*</span></label>
-                        <input type="datetime-local" class="form-control" id="violation_date" name="violation_date" required>
+                        <label for="vehicle_id" class="form-label">Phương tiện vi phạm <span class="text-danger">*</span></label>
+                        <select class="form-select" id="vehicle_id" name="vehicle_id" required data-bs-toggle="tooltip" data-bs-placement="top" title="Chọn phương tiện vi phạm">
+                            <option value="">-- Chọn phương tiện --</option>
+                            <?php foreach ($vehicles as $vehicle): ?>
+                                <option value="<?php echo $vehicle['id']; ?>" <?php echo $vehicle['id'] == $vehicle_id ? 'selected' : ''; ?>>
+                                    <?php echo htmlspecialchars($vehicle['license_plate'] . ' - ' . $vehicle['owner_name']); ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-md-3">
+                        <label for="violation_date" class="form-label">Ngày vi phạm <span class="text-danger">*</span></label>
+                        <input type="date" class="form-control" id="violation_date" name="violation_date" required value="<?php echo date('Y-m-d'); ?>">
+                    </div>
+                    <div class="col-md-3">
+                        <label for="violation_time" class="form-label">Giờ vi phạm <span class="text-danger">*</span></label>
+                        <input type="time" class="form-control" id="violation_time" name="violation_time" required value="<?php echo date('H:i'); ?>">
                     </div>
                     <div class="col-md-6">
                         <label for="location" class="form-label">Địa điểm vi phạm <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" id="location" name="location" required placeholder="Nhập địa điểm xảy ra vi phạm">
+                        <input type="text" class="form-control" id="location" name="location" required placeholder="Nhập địa điểm vi phạm">
                     </div>
                 </div>
                 
                 <div class="row mb-3">
                     <div class="col-md-6">
                         <label for="violation_type" class="form-label">Loại vi phạm <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" id="violation_type" name="violation_type" required placeholder="Nhập loại vi phạm">
+                        <select class="form-select" id="violation_type" name="violation_type" required>
+                            <option value="">-- Chọn loại vi phạm --</option>
+                            <option value="Vượt đèn đỏ">Vượt đèn đỏ</option>
+                            <option value="Vượt quá tốc độ">Vượt quá tốc độ</option>
+                            <option value="Đi ngược chiều">Đi ngược chiều</option>
+                            <option value="Lấn làn">Lấn làn</option>
+                            <option value="Không đội mũ bảo hiểm">Không đội mũ bảo hiểm</option>
+                            <option value="Không có giấy phép lái xe">Không có giấy phép lái xe</option>
+                            <option value="Không có giấy đăng ký xe">Không có giấy đăng ký xe</option>
+                            <option value="Vi phạm nồng độ cồn">Vi phạm nồng độ cồn</option>
+                            <option value="Đỗ xe không đúng nơi quy định">Đỗ xe không đúng nơi quy định</option>
+                            <option value="Khác">Khác</option>
+                        </select>
                     </div>
                     <div class="col-md-6">
                         <label for="fine_amount" class="form-label">Số tiền phạt (VNĐ) <span class="text-danger">*</span></label>
-                        <input type="number" class="form-control" id="fine_amount" name="fine_amount" required placeholder="Nhập số tiền phạt">
-                    </div>
-                </div>
-                
-                <div class="row mb-3">
-                    <div class="col-md-6">
-                        <label for="status" class="form-label">Trạng thái <span class="text-danger">*</span></label>
-                        <select class="form-select" id="status" name="status" required>
-                            <option value="Unpaid">Chưa nộp phạt</option>
-                            <option value="Processing">Đang xử lý</option>
-                            <option value="Paid">Đã nộp phạt</option>
-                        </select>
+                        <input type="number" class="form-control" id="fine_amount" name="fine_amount" required placeholder="Nhập số tiền phạt" min="0" step="10000" value="0">
                     </div>
                 </div>
                 
                 <div class="mb-3">
                     <label for="description" class="form-label">Mô tả chi tiết</label>
-                    <textarea class="form-control" id="description" name="description" rows="4" placeholder="Nhập mô tả chi tiết về vi phạm"></textarea>
+                    <textarea class="form-control" id="description" name="description" rows="3" placeholder="Nhập mô tả chi tiết về vi phạm (nếu có)"></textarea>
                 </div>
                 
                 <div class="d-grid gap-2 d-md-flex justify-content-md-end">
-                    <a href="manage_violations.php" class="btn btn-secondary">Hủy</a>
-                    <button type="submit" name="add_violation" class="btn btn-primary">Thêm vi phạm</button>
+                    <a href="manage_violations.php" class="btn btn-secondary me-md-2">Hủy</a>
+                    <button type="submit" class="btn btn-primary" id="submitViolation">Thêm vi phạm</button>
                 </div>
             </form>
         </div>
     </div>
-<?php elseif (isset($_GET['license_plate'])): ?>
-    <div class="alert alert-warning">
-        <h4 class="alert-heading">Không tìm thấy phương tiện!</h4>
-        <p>Không tìm thấy thông tin phương tiện với biển số <strong><?php echo htmlspecialchars($_GET['license_plate']); ?></strong> trong hệ thống.</p>
-        <hr>
-        <p class="mb-0">Bạn có thể <a href="#" data-bs-toggle="modal" data-bs-target="#addVehicleModal">thêm phương tiện mới</a> vào hệ thống.</p>
-    </div>
-<?php endif; ?>
 
-<!-- Modal Thêm phương tiện mới -->
-<div class="modal fade" id="addVehicleModal" tabindex="-1" aria-labelledby="addVehicleModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header bg-success text-white">
-                <h5 class="modal-title" id="addVehicleModalLabel">Thêm phương tiện mới</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <form action="" method="POST">
-                    <div class="mb-3">
-                        <label for="new_license_plate" class="form-label">Biển số xe <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" id="new_license_plate" name="license_plate" required placeholder="Nhập biển số xe (VD: 29A-12345)">
-                    </div>
-                    <div class="mb-3">
-                        <label for="owner_name" class="form-label">Chủ phương tiện <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" id="owner_name" name="owner_name" required placeholder="Nhập tên chủ phương tiện">
-                    </div>
-                    <div class="mb-3">
-                        <label for="vehicle_type" class="form-label">Loại phương tiện <span class="text-danger">*</span></label>
-                        <select class="form-select" id="vehicle_type" name="vehicle_type" required>
-                            <option value="">-- Chọn loại phương tiện --</option>
-                            <option value="Car">Ô tô</option>
-                            <option value="Motorcycle">Xe máy</option>
-                            <option value="Truck">Xe tải</option>
-                            <option value="Bus">Xe khách</option>
-                            <option value="Other">Khác</option>
-                        </select>
-                    </div>
-                    <div class="d-grid">
-                        <button type="submit" name="add_vehicle" class="btn btn-success">Thêm phương tiện</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-</div>
+    <script>
+    document.addEventListener("DOMContentLoaded", function() {
+        // Debug form submit
+        const addViolationForm = document.getElementById("addViolationForm");
+        if (addViolationForm) {
+            addViolationForm.addEventListener("submit", function(event) {
+                console.log("Form đang được submit...");
+                
+                // Validate form
+                const vehicle_id = document.getElementById("vehicle_id").value;
+                const violation_date = document.getElementById("violation_date").value;
+                const violation_time = document.getElementById("violation_time").value;
+                const location = document.getElementById("location").value;
+                const violation_type = document.getElementById("violation_type").value;
+                const fine_amount = document.getElementById("fine_amount").value;
+                
+                const errors = [];
+                
+                if (!vehicle_id) {
+                    errors.push("Vui lòng chọn phương tiện");
+                }
+                
+                if (!violation_date) {
+                    errors.push("Vui lòng chọn ngày vi phạm");
+                }
+                
+                if (!violation_time) {
+                    errors.push("Vui lòng chọn giờ vi phạm");
+                }
+                
+                if (!location) {
+                    errors.push("Vui lòng nhập địa điểm vi phạm");
+                }
+                
+                if (!violation_type) {
+                    errors.push("Vui lòng chọn loại vi phạm");
+                }
+                
+                if (fine_amount <= 0) {
+                    errors.push("Số tiền phạt phải lớn hơn 0");
+                }
+                
+                if (errors.length > 0) {
+                    event.preventDefault();
+                    alert("Vui lòng kiểm tra lại thông tin:\n- " + errors.join("\n- "));
+                } else {
+                    console.log("Form hợp lệ, đang submit...");
+                }
+            });
+        }
+        
+        // Format số tiền phạt
+        const fineInput = document.getElementById("fine_amount");
+        if (fineInput) {
+            fineInput.addEventListener("change", function() {
+                if (this.value < 0) {
+                    this.value = 0;
+                }
+            });
+        }
+    });
+    </script>
 
-<?php include_once 'layout/footer.php'; ?>
+    <?php include_once 'layout/footer.php';
+}
+?>

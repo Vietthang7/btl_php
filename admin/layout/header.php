@@ -23,17 +23,83 @@ if (!isset($_SESSION['user_id'])) {
     <link rel="stylesheet" href="https://cdn.datatables.net/1.11.5/css/dataTables.bootstrap5.min.css">
     <!-- Custom CSS -->
     <link rel="stylesheet" href="../assets/css/admin-style.css">
+    <style>
+        /* Sửa lỗi header không thẳng hàng */
+        body {
+            padding-top: 56px;
+        }
+        
+        .navbar {
+            padding: 0 !important;
+            height: 56px;
+            position: fixed;
+            top: 0;
+            right: 0;
+            left: 0;
+            z-index: 1030;
+            background-color: #3498db !important;
+        }
+        
+        .navbar-brand {
+            background-color: rgba(0, 0, 0, 0.15);
+            height: 56px;
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            padding: 0.75rem 1rem;
+            width: 100%;
+        }
+        
+        .sidebar {
+            position: fixed;
+            top: 56px;
+            bottom: 0;
+            left: 0;
+            width: 250px !important;
+            z-index: 100;
+            padding: 0;
+            box-shadow: inset -1px 0 0 rgba(0, 0, 0, .1);
+        }
+        
+        .sidebar-sticky {
+            height: calc(100vh - 56px);
+            overflow-x: hidden;
+            overflow-y: auto;
+        }
+        
+        .main-content {
+            margin-left: 250px;
+            padding-top: 20px;
+        }
+        
+        @media (max-width: 767.98px) {
+            .sidebar {
+                top: 56px;
+                width: 100% !important;
+                position: relative;
+                height: auto;
+                background-color: #fff;
+                padding-top: 0 !important;
+            }
+            
+            .main-content {
+                margin-left: 0;
+                width: 100%;
+                padding: 15px;
+            }
+        }
+    </style>
 </head>
 <body>
     <header class="navbar navbar-dark sticky-top bg-primary flex-md-nowrap p-0 shadow">
-        <a class="navbar-brand col-md-3 col-lg-2 me-0 px-3 d-flex align-items-center" href="index.php">
+        <a class="navbar-brand col-md-3 col-lg-2 me-0 px-3" href="index.php">
             <i class="fas fa-traffic-light me-2"></i>VPTGT Admin
         </a>
         <button class="navbar-toggler position-absolute d-md-none collapsed" type="button" 
                 data-bs-toggle="collapse" data-bs-target="#sidebarMenu">
             <span class="navbar-toggler-icon"></span>
         </button>
-        <div class="w-100 d-none d-md-block"></div>
+        <div class="w-100"></div>
         <div class="navbar-nav">
             <div class="nav-item dropdown">
                 <a class="nav-link px-3 dropdown-toggle d-flex align-items-center" href="#" role="button" data-bs-toggle="dropdown">
