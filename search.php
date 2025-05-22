@@ -222,20 +222,6 @@ if (!empty($license_plate)) {
                                                                                 <td><?php echo formatDate($violation['payment_date']); ?></td>
                                                                             </tr>
                                                                             <?php endif; ?>
-                                                                            <tr>
-                                                                                <td class="fw-bold">Đơn vị xử lý:</td>
-                                                                                <td><?php echo htmlspecialchars($violation['officer']); ?></td>
-                                                                            </tr>
-                                                                            <tr>
-                                                                                <td class="fw-bold">Hạn nộp phạt:</td>
-                                                                                <td>
-                                                                                    <?php if ($violation['status'] == 'Unpaid'): ?>
-                                                                                        <span class="text-danger fw-bold"><?php echo formatDate($violation['deadline']); ?></span>
-                                                                                    <?php else: ?>
-                                                                                        <?php echo formatDate($violation['deadline']); ?>
-                                                                                    <?php endif; ?>
-                                                                                </td>
-                                                                            </tr>
                                                                         </table>
                                                                     </div>
                                                                 </div>
