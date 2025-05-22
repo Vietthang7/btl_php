@@ -106,11 +106,11 @@ if (!empty($license_plate)) {
                                 </div>
                                 <div class="col-md-6 mb-3">
                                     <h6 class="text-muted mb-1">Số CMND/CCCD</h6>
-                                    <p class="fw-bold mb-0"><?php echo htmlspecialchars($vehicle['owner_id']); ?></p>
+                                    <p class="fw-bold mb-0"><?php echo isset($vehicle_data["owner_id"]) ? $vehicle_data["owner_id"] : "Chưa có thông tin"; ?></p>
                                 </div>
                                 <div class="col-md-6 mb-3">
                                     <h6 class="text-muted mb-1">Địa chỉ</h6>
-                                    <p class="fw-bold mb-0"><?php echo htmlspecialchars($vehicle['owner_address']); ?></p>
+                                    <p class="fw-bold mb-0"><?php echo isset($vehicle_data["owner_address"]) ? $vehicle_data["owner_address"] : "Chưa có thông tin"; ?></p>
                                 </div>
                             </div>
                         </div>
