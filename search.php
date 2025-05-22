@@ -106,11 +106,11 @@ if (!empty($license_plate)) {
                                 </div>
                                 <div class="col-md-6 mb-3">
                                     <h6 class="text-muted mb-1">Số CMND/CCCD</h6>
-                                    <p class="fw-bold mb-0"><?php echo isset($vehicle_data["owner_id"]) ? $vehicle_data["owner_id"] : "Chưa có thông tin"; ?></p>
+                                    <p class="fw-bold mb-0"><?php echo isset($vehicle["owner_id"]) ? htmlspecialchars($vehicle["owner_id"]) : "Chưa có thông tin"; ?></p>
                                 </div>
                                 <div class="col-md-6 mb-3">
                                     <h6 class="text-muted mb-1">Địa chỉ</h6>
-                                    <p class="fw-bold mb-0"><?php echo isset($vehicle_data["owner_address"]) ? $vehicle_data["owner_address"] : "Chưa có thông tin"; ?></p>
+                                    <p class="fw-bold mb-0"><?php echo isset($vehicle["owner_address"]) ? htmlspecialchars($vehicle["owner_address"]) : "Chưa có thông tin"; ?></p>
                                 </div>
                             </div>
                         </div>
@@ -164,93 +164,9 @@ if (!empty($license_plate)) {
                                                 <?php endif; ?>
                                             </td>
                                             <td class="text-center">
-                                                <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#violationModal<?php echo $violation['id']; ?>">
+                                                <a href="violation_details.php?id=<?php echo $violation['id']; ?>" class="btn btn-sm btn-primary">
                                                     <i class="fas fa-eye"></i> Xem
-                                                </button>
-                                                
-                                                <!-- Modal Chi tiết vi phạm -->
-                                                <div class="modal fade" id="violationModal<?php echo $violation['id']; ?>" tabindex="-1" aria-labelledby="violationModalLabel<?php echo $violation['id']; ?>" aria-hidden="true">
-                                                    <div class="modal-dialog modal-lg">
-                                                        <div class="modal-content">
-                                                            <div class="modal-header bg-primary text-white">
-                                                                <h5 class="modal-title" id="violationModalLabel<?php echo $violation['id']; ?>">
-                                                                    Chi tiết vi phạm #<?php echo $violation['id']; ?>
-                                                                </h5>
-                                                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-                                                            </div>
-                                                            <div class="modal-body">
-                                                                <div class="row mb-4">
-                                                                    <div class="col-md-6">
-                                                                        <h6 class="text-muted">Thông tin vi phạm</h6>
-                                                                        <table class="table table-sm table-borderless">
-                                                                            <tr>
-                                                                                <td class="fw-bold">Ngày vi phạm:</td>
-                                                                                <td><?php echo formatDate($violation['violation_date']); ?></td>
-                                                                            </tr>
-                                                                            <tr>
-                                                                                <td class="fw-bold">Địa điểm:</td>
-                                                                                <td><?php echo htmlspecialchars($violation['location']); ?></td>
-                                                                            </tr>
-                                                                            <tr>
-                                                                                <td class="fw-bold">Lỗi vi phạm:</td>
-                                                                                <td><?php echo htmlspecialchars($violation['violation_type']); ?></td>
-                                                                            </tr>
-                                                                            <tr>
-                                                                                <td class="fw-bold">Tiền phạt:</td>
-                                                                                <td class="text-danger fw-bold"><?php echo formatMoney($violation['fine_amount']); ?></td>
-                                                                            </tr>
-                                                                        </table>
-                                                                    </div>
-                                                                    <div class="col-md-6">
-                                                                        <h6 class="text-muted">Trạng thái xử lý</h6>
-                                                                        <table class="table table-sm table-borderless">
-                                                                            <tr>
-                                                                                <td class="fw-bold">Tình trạng:</td>
-                                                                                <td>
-                                                                                    <?php if ($violation['status'] == 'Paid'): ?>
-                                                                                        <span class="badge bg-success">Đã nộp phạt</span>
-                                                                                    <?php elseif ($violation['status'] == 'Processing'): ?>
-                                                                                        <span class="badge bg-warning">Đang xử lý</span>
-                                                                                    <?php else: ?>
-                                                                                        <span class="badge bg-danger">Chưa nộp phạt</span>
-                                                                                    <?php endif; ?>
-                                                                                </td>
-                                                                            </tr>
-                                                                            <?php if ($violation['status'] == 'Paid'): ?>
-                                                                            <tr>
-                                                                                <td class="fw-bold">Ngày nộp phạt:</td>
-                                                                                <td><?php echo formatDate($violation['payment_date']); ?></td>
-                                                                            </tr>
-                                                                            <?php endif; ?>
-                                                                        </table>
-                                                                    </div>
-                                                                </div>
-                                                                
-                                                                <?php if (!empty($violation['description'])): ?>
-                                                                <div class="mb-3">
-                                                                    <h6 class="text-muted">Mô tả vi phạm:</h6>
-                                                                    <p class="card-text bg-light p-3 rounded"><?php echo nl2br(htmlspecialchars($violation['description'])); ?></p>
-                                                                </div>
-                                                                <?php endif; ?>
-                                                                
-                                                                <?php if ($violation['status'] == 'Unpaid'): ?>
-                                                                <div class="alert alert-warning">
-                                                                    <i class="fas fa-info-circle me-2"></i>
-                                                                    <strong>Lưu ý:</strong> Vui lòng đến cơ quan công an giao thông để nộp phạt trước hạn nộp phạt.
-                                                                </div>
-                                                                <?php endif; ?>
-                                                            </div>
-                                                            <div class="modal-footer">
-                                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
-                                                                <?php if ($violation['status'] == 'Unpaid'): ?>
-                                                                <a href="#" class="btn btn-primary">
-                                                                    <i class="fas fa-print me-2"></i>In biên bản
-                                                                </a>
-                                                                <?php endif; ?>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
+                                                </a>
                                             </td>
                                         </tr>
                                     <?php endforeach; ?>
@@ -347,6 +263,31 @@ if (!empty($license_plate)) {
     from { opacity: 0; transform: translateY(20px); }
     to { opacity: 1; transform: translateY(0); }
 }
+
+/* Xóa mọi modal-backdrop khi tải trang */
+body .modal-backdrop {
+    display: none !important;
+}
+
+/* Đảm bảo body không bị khóa cuộn */
+body.modal-open {
+    overflow: auto !important;
+    padding-right: 0 !important;
+}
 </style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Xóa bất kỳ modal-backdrop nào khi trang tải xong
+    document.querySelectorAll('.modal-backdrop').forEach(function(backdrop) {
+        backdrop.remove();
+    });
+    
+    // Khôi phục trạng thái của body
+    document.body.classList.remove('modal-open');
+    document.body.style.overflow = '';
+    document.body.style.paddingRight = '';
+});
+</script>
 
 <?php include_once 'includes/footer.php'; ?>

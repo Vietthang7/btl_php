@@ -239,30 +239,42 @@ function isAjaxRequest() {
 /**
  * Caching dữ liệu tĩnh
  */
-function outputCache($filename, $content, $expiration = 3600) {
-    $cacheDir = __DIR__ . '/../cache/';
-    
-    if (!file_exists($cacheDir)) {
-        mkdir($cacheDir, 0755, true);
+function getViolationById($conn, $id) {
+    try {
+        // Chuẩn bị câu truy vấn
+        $stmt = $conn->prepare("
+            SELECT v.*, 
+                   vh.license_plate, 
+                   vh.owner_name, 
+                   vh.vehicle_type,
+                   CASE 
+                       WHEN v.status = 'Unpaid' THEN 'Chưa nộp phạt'
+                       WHEN v.status = 'Processing' THEN 'Đang xử lý'
+                       WHEN v.status = 'Paid' THEN 'Đã nộp phạt'
+                       ELSE v.status
+                   END as status_text
+            FROM violations v 
+            JOIN vehicles vh ON v.vehicle_id = vh.id 
+            WHERE v.id = :id
+        ");
+        
+        // Ràng buộc tham số và thực thi
+        $stmt->bindParam(':id', $id, PDO::PARAM_INT);
+        $stmt->execute();
+        
+        // Lấy kết quả
+        $violation = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        // Trả về false nếu không có kết quả
+        if (!$violation) {
+            return false;
+        }
+        
+        // Trả về dữ liệu vi phạm
+        return $violation;
+    } catch (PDOException $e) {
+        // Ghi log lỗi nếu cần
+        error_log("Database Error: " . $e->getMessage());
+        return false;
     }
-    
-    $cacheFile = $cacheDir . md5($filename) . '.cache';
-    file_put_contents($cacheFile, $content);
-    
-    // Set expiration time
-    touch($cacheFile, time() + $expiration);
-}
-
-/**
- * Lấy dữ liệu từ cache
- */
-function getCache($filename) {
-    $cacheDir = __DIR__ . '/../cache/';
-    $cacheFile = $cacheDir . md5($filename) . '.cache';
-    
-    if (file_exists($cacheFile) && (filemtime($cacheFile) > time())) {
-        return file_get_contents($cacheFile);
-    }
-    
-    return false;
 }
