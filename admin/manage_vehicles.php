@@ -99,39 +99,51 @@ include_once 'layout/header.php';
 <?php displayFlashMessage(); ?>
 
 <div class="card mb-4">
-    <div class="card-header bg-white">
-        <form action="" method="GET" class="row g-3">
-            <div class="col-md-4">
-                <div class="input-group">
-                    <input type="text" class="form-control" name="search" placeholder="Tìm kiếm biển số, chủ xe..." value="<?php echo htmlspecialchars($search); ?>">
-                    <button class="btn btn-outline-secondary" type="submit">
-                        <i class="fas fa-search"></i>
-                    </button>
-                </div>
+    <div class="card-header bg-white py-3">
+        <div class="d-flex justify-content-between align-items-center">
+            <div style="width: 280px;">
+                <form action="" method="GET" id="searchForm" class="d-flex">
+                    <div class="input-group">
+                        <input type="text" class="form-control" name="search" placeholder="Tìm kiếm biển số, chủ xe..." value="<?php echo htmlspecialchars($search); ?>">
+                        <button class="btn btn-outline-secondary px-3" type="submit">
+                            <i class="fas fa-search"></i>
+                        </button>
+                    </div>
+                    <?php if (!empty($vehicle_type)): ?>
+                        <input type="hidden" name="vehicle_type" value="<?php echo htmlspecialchars($vehicle_type); ?>">
+                    <?php endif; ?>
+                </form>
             </div>
-            <div class="col-md-3">
-                <select class="form-select" name="vehicle_type" onchange="this.form.submit()">
-                    <option value="">Tất cả loại phương tiện</option>
-                    <option value="Car" <?php echo $vehicle_type == 'Car' ? 'selected' : ''; ?>>Ô tô</option>
-                    <option value="Motorcycle" <?php echo $vehicle_type == 'Motorcycle' ? 'selected' : ''; ?>>Xe máy</option>
-                    <option value="Truck" <?php echo $vehicle_type == 'Truck' ? 'selected' : ''; ?>>Xe tải</option>
-                    <option value="Bus" <?php echo $vehicle_type == 'Bus' ? 'selected' : ''; ?>>Xe khách</option>
-                    <option value="Other" <?php echo $vehicle_type == 'Other' ? 'selected' : ''; ?>>Khác</option>
-                </select>
+            
+            <div style="width: 280px;">
+                <form action="" method="GET" id="filterForm">
+                    <select class="form-select" name="vehicle_type" id="vehicleTypeSelect" onchange="this.form.submit()">
+                        <option value="">Tất cả loại phương tiện</option>
+                        <option value="Car" <?php echo $vehicle_type == 'Car' ? 'selected' : ''; ?>>Ô tô</option>
+                        <option value="Motorcycle" <?php echo $vehicle_type == 'Motorcycle' ? 'selected' : ''; ?>>Xe máy</option>
+                        <option value="Truck" <?php echo $vehicle_type == 'Truck' ? 'selected' : ''; ?>>Xe tải</option>
+                        <option value="Bus" <?php echo $vehicle_type == 'Bus' ? 'selected' : ''; ?>>Xe khách</option>
+                        <option value="Other" <?php echo $vehicle_type == 'Other' ? 'selected' : ''; ?>>Khác</option>
+                    </select>
+                    <?php if (!empty($search)): ?>
+                        <input type="hidden" name="search" value="<?php echo htmlspecialchars($search); ?>">
+                    <?php endif; ?>
+                </form>
             </div>
-            <div class="col-md-5 text-end">
+            
+            <div style="width: 140px;" class="text-end">
                 <a href="manage_vehicles.php" class="btn btn-outline-secondary">
-                    <i class="fas fa-sync-alt"></i> Làm mới
+                    <i class="fas fa-sync-alt me-1"></i> Làm mới
                 </a>
             </div>
-        </form>
+        </div>
     </div>
     <div class="card-body p-0">
         <div class="table-responsive">
             <table class="table table-striped table-hover mb-0">
                 <thead class="table-light">
                     <tr>
-                        <th>#</th>
+                        <th>STT</th>
                         <th>Biển số xe</th>
                         <th>Chủ phương tiện</th>
                         <th>Loại phương tiện</th>
@@ -246,5 +258,21 @@ include_once 'layout/header.php';
         </div>
     <?php endif; ?>
 </div>
+
+<!-- Thêm CSS tùy chỉnh để cải thiện giao diện -->
+<style>
+.card-header .d-flex {
+    gap: 20px;  /* Khoảng cách giữa các phần tử */
+}
+
+.input-group {
+    width: 100%;
+}
+
+.form-control:focus, .form-select:focus {
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.15);
+    border-color: #86b7fe;
+}
+</style>
 
 <?php include_once 'layout/footer.php'; ?>

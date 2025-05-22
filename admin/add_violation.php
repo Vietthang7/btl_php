@@ -6,13 +6,7 @@ include_once '../includes/functions.php';
 // Kiểm tra đăng nhập
 requireLogin();
 
-// Debug để kiểm tra request được nhận hay không
-error_log("add_violation.php được truy cập, phương thức: " . $_SERVER['REQUEST_METHOD']);
-
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // Debug POST data
-    error_log("POST data nhận được: " . print_r($_POST, true));
-    
     $vehicle_id = isset($_POST['vehicle_id']) ? (int)$_POST['vehicle_id'] : 0;
     $violation_date = trim($_POST['violation_date'] ?? '');
     $violation_time = trim($_POST['violation_time'] ?? '');
@@ -49,38 +43,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     
     if (count($errors) > 0) {
-        setFlashMessage('danger', implode("<br>", $errors));
+        setFlashMessage(implode("<br>", $errors), 'danger');
         header('Location: ' . $_SERVER['HTTP_REFERER']);
         exit;
     }
     
     try {
         // Kết hợp ngày và giờ
-        $violation_datetime = $violation_date . ' ' . $violation_time;
+        $violation_date_full = $violation_date . ' ' . $violation_time;
         
-        // Thêm vi phạm
+        // Thêm vi phạm - ĐÃ SỬA: sử dụng violation_date thay vì violation_datetime
         $stmt = $conn->prepare("
             INSERT INTO violations 
-            (vehicle_id, violation_datetime, location, violation_type, description, fine_amount) 
+            (vehicle_id, violation_date, location, violation_type, description, fine_amount, status) 
             VALUES 
-            (:vehicle_id, :violation_datetime, :location, :violation_type, :description, :fine_amount)
+            (:vehicle_id, :violation_date, :location, :violation_type, :description, :fine_amount, :status)
         ");
         
         $stmt->bindParam(':vehicle_id', $vehicle_id);
-        $stmt->bindParam(':violation_datetime', $violation_datetime);
+        $stmt->bindParam(':violation_date', $violation_date_full); // ĐÃ SỬA: sử dụng violation_date thay vì violation_datetime
         $stmt->bindParam(':location', $location);
         $stmt->bindParam(':violation_type', $violation_type);
         $stmt->bindParam(':description', $description);
         $stmt->bindParam(':fine_amount', $fine_amount);
+        $stmt->bindValue(':status', 'Unpaid'); // Sử dụng giá trị mặc định
         
         $stmt->execute();
         
-        setFlashMessage('success', 'Thêm vi phạm mới thành công!');
+        setFlashMessage('Thêm vi phạm mới thành công!', 'success');
         header('Location: manage_violations.php');
         exit;
     } catch (PDOException $e) {
         error_log("Lỗi PDO: " . $e->getMessage());
-        setFlashMessage('danger', 'Lỗi khi thêm vi phạm: ' . $e->getMessage());
+        setFlashMessage('Lỗi khi thêm vi phạm: ' . $e->getMessage(), 'danger');
         header('Location: ' . $_SERVER['HTTP_REFERER']);
         exit;
     }
@@ -171,7 +166,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     </div>
                     <div class="col-md-6">
                         <label for="fine_amount" class="form-label">Số tiền phạt (VNĐ) <span class="text-danger">*</span></label>
-                        <input type="number" class="form-control" id="fine_amount" name="fine_amount" required placeholder="Nhập số tiền phạt" min="0" step="10000" value="0">
+                        <input type="number" class="form-control" id="fine_amount" name="fine_amount" required placeholder="Nhập số tiền phạt" min="10000" step="10000" value="100000">
                     </div>
                 </div>
                 
@@ -190,12 +185,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     <script>
     document.addEventListener("DOMContentLoaded", function() {
-        // Debug form submit
         const addViolationForm = document.getElementById("addViolationForm");
         if (addViolationForm) {
             addViolationForm.addEventListener("submit", function(event) {
-                console.log("Form đang được submit...");
-                
                 // Validate form
                 const vehicle_id = document.getElementById("vehicle_id").value;
                 const violation_date = document.getElementById("violation_date").value;
@@ -233,8 +225,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if (errors.length > 0) {
                     event.preventDefault();
                     alert("Vui lòng kiểm tra lại thông tin:\n- " + errors.join("\n- "));
-                } else {
-                    console.log("Form hợp lệ, đang submit...");
                 }
             });
         }
@@ -243,8 +233,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         const fineInput = document.getElementById("fine_amount");
         if (fineInput) {
             fineInput.addEventListener("change", function() {
-                if (this.value < 0) {
-                    this.value = 0;
+                if (this.value < 10000) {
+                    this.value = 10000;
                 }
             });
         }

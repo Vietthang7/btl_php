@@ -44,6 +44,58 @@ JOIN vehicles vh ON v.vehicle_id = vh.id
 ORDER BY v.created_at DESC LIMIT 5");
 $recent_violations = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
+// Lấy dữ liệu cho biểu đồ - Vi phạm trong 14 ngày gần nhất
+$chart_data = [];
+$chart_days = 14;
+
+// Ngày hiện tại
+$current_date = new DateTime();
+
+// Mảng lưu nhãn (labels) cho biểu đồ
+$chart_labels = [];
+$new_violations = [];
+$processed_violations = [];
+
+// Kiểm tra xem có cột updated_at trong bảng violations không
+$stmt = $conn->query("SHOW COLUMNS FROM violations LIKE 'updated_at'");
+$has_updated_at = $stmt->rowCount() > 0;
+
+// Lấy dữ liệu cho 14 ngày gần nhất
+for ($i = ($chart_days - 1); $i >= 0; $i--) {
+    $date = clone $current_date;
+    $date->modify("-$i day");
+    
+    $day_str = $date->format('j/n'); // Format: ngày/tháng (vd: 1/5)
+    $date_sql = $date->format('Y-m-d');
+    
+    // Thêm nhãn ngày
+    $chart_labels[] = $day_str;
+    
+    // Đếm vi phạm mới trong ngày
+    $stmt = $conn->prepare("SELECT COUNT(*) FROM violations WHERE DATE(created_at) = :date");
+    $stmt->bindParam(':date', $date_sql);
+    $stmt->execute();
+    $new_violations[] = (int)$stmt->fetchColumn();
+    
+    // Đếm vi phạm đã xử lý trong ngày
+    if ($has_updated_at) {
+        // Nếu có cột updated_at, sử dụng nó
+        $stmt = $conn->prepare("SELECT COUNT(*) FROM violations WHERE DATE(updated_at) = :date AND status = 'Paid'");
+    } else {
+        // Nếu không có cột updated_at, chỉ đếm số lượng vi phạm đã thanh toán mỗi ngày
+        // Đây chỉ là một ước tính vì không biết chính xác khi nào vi phạm được xử lý
+        $stmt = $conn->prepare("SELECT COUNT(*) FROM violations WHERE DATE(created_at) = :date AND status = 'Paid'");
+    }
+    $stmt->bindParam(':date', $date_sql);
+    $stmt->execute();
+    $processed_violations[] = (int)$stmt->fetchColumn();
+}
+
+// Chuyển đổi dữ liệu sang định dạng JSON để sử dụng trong JavaScript
+$chart_labels_json = json_encode($chart_labels);
+$new_violations_json = json_encode($new_violations);
+$processed_violations_json = json_encode($processed_violations);
+
 // Layout
 $pageTitle = "Trang quản trị";
 include_once 'layout/header.php';
@@ -144,13 +196,12 @@ include_once 'layout/header.php';
                 </h5>
                 <div class="dropdown">
                     <button class="btn btn-sm btn-light dropdown-toggle" type="button" id="dropdownTimeRange" data-bs-toggle="dropdown">
-                        30 ngày qua
+                        <span id="timeRangeText">14 ngày qua</span>
                     </button>
                     <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="dropdownTimeRange">
-                        <li><a class="dropdown-item" href="#">7 ngày qua</a></li>
-                        <li><a class="dropdown-item active" href="#">30 ngày qua</a></li>
-                        <li><a class="dropdown-item" href="#">Quý này</a></li>
-                        <li><a class="dropdown-item" href="#">Năm nay</a></li>
+                        <li><a class="dropdown-item time-range" href="#" data-days="7">7 ngày qua</a></li>
+                        <li><a class="dropdown-item active time-range" href="#" data-days="14">14 ngày qua</a></li>
+                        <li><a class="dropdown-item time-range" href="#" data-days="30">30 ngày qua</a></li>
                     </ul>
                 </div>
             </div>
@@ -275,6 +326,37 @@ include_once 'layout/header.php';
     </div>
 </div>
 
+<style>
+/* CSS cho thống kê card */
+.stats-card {
+    transition: all 0.3s ease;
+}
+.stats-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 0.5rem 1rem rgba(0,0,0,0.15);
+}
+.icon-box {
+    width: 45px;
+    height: 45px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* CSS cho chart */
+.chart-container {
+    position: relative;
+    margin: auto;
+    height: 300px;
+}
+
+/* Tooltip styling */
+[data-bs-toggle="tooltip"] {
+    cursor: pointer;
+}
+</style>
+
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     // Chart cho thống kê vi phạm
@@ -282,10 +364,10 @@ document.addEventListener('DOMContentLoaded', function() {
     var violationsChart = new Chart(ctx1, {
         type: 'line',
         data: {
-            labels: ['1/5', '2/5', '3/5', '4/5', '5/5', '6/5', '7/5', '8/5', '9/5', '10/5', '11/5', '12/5', '13/5', '14/5'],
+            labels: <?php echo $chart_labels_json; ?>,
             datasets: [{
                 label: 'Vi phạm mới',
-                data: [5, 7, 4, 9, 6, 3, 8, 10, 6, 5, 7, 9, 8, 12],
+                data: <?php echo $new_violations_json; ?>,
                 backgroundColor: 'rgba(231, 76, 60, 0.1)',
                 borderColor: 'rgba(231, 76, 60, 1)',
                 borderWidth: 2,
@@ -296,7 +378,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 fill: true
             }, {
                 label: 'Đã xử lý',
-                data: [2, 4, 3, 5, 4, 2, 5, 7, 4, 3, 5, 6, 7, 9],
+                data: <?php echo $processed_violations_json; ?>,
                 backgroundColor: 'rgba(46, 204, 113, 0.1)',
                 borderColor: 'rgba(46, 204, 113, 1)',
                 borderWidth: 2,
@@ -345,7 +427,17 @@ document.addEventListener('DOMContentLoaded', function() {
                     backgroundColor: 'rgba(0, 0, 0, 0.7)',
                     padding: 10,
                     bodySpacing: 5,
-                    usePointStyle: true
+                    usePointStyle: true,
+                    callbacks: {
+                        label: function(context) {
+                            let value = context.raw;
+                            let label = context.dataset.label || '';
+                            if (label) {
+                                label += ': ';
+                            }
+                            return label + value + ' vi phạm';
+                        }
+                    }
                 }
             }
         }
@@ -391,12 +483,52 @@ document.addEventListener('DOMContentLoaded', function() {
                             const value = context.raw;
                             const total = context.dataset.data.reduce((a, b) => a + b, 0);
                             const percentage = Math.round((value / total) * 100);
-                            return `${context.label}: ${value.toLocaleString('vi-VN')} đ (${percentage}%)`;
+                            const formattedValue = new Intl.NumberFormat('vi-VN', { 
+                                style: 'currency', 
+                                currency: 'VND',
+                                maximumFractionDigits: 0
+                            }).format(value);
+                            return `${context.label}: ${formattedValue} (${percentage}%)`;
                         }
                     }
                 }
             }
         }
+    });
+    
+    // Khởi tạo tooltips
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+    
+    // Xử lý thay đổi thời gian hiển thị biểu đồ
+    document.querySelectorAll('.time-range').forEach(function(element) {
+        element.addEventListener('click', function(e) {
+            e.preventDefault();
+            const days = this.getAttribute('data-days');
+            
+            // Cập nhật vào dropdown button
+            document.getElementById('timeRangeText').textContent = `${days} ngày qua`;
+            
+            // Thực hiện AJAX để lấy dữ liệu mới
+            fetch(`get_chart_data.php?days=${days}`)
+                .then(response => response.json())
+                .then(data => {
+                    // Cập nhật dữ liệu biểu đồ
+                    violationsChart.data.labels = data.labels;
+                    violationsChart.data.datasets[0].data = data.new_violations;
+                    violationsChart.data.datasets[1].data = data.processed_violations;
+                    violationsChart.update();
+                })
+                .catch(error => console.error('Lỗi khi tải dữ liệu:', error));
+            
+            // Cập nhật trạng thái active
+            document.querySelectorAll('.time-range').forEach(item => {
+                item.classList.remove('active');
+            });
+            this.classList.add('active');
+        });
     });
 });
 </script>

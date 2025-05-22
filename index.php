@@ -6,7 +6,7 @@ include_once 'includes/header.php';
 ?>
 
 <div class="row">
-    <div class="col-md-12 text-center mb-5">
+    <div class="col-md-12 text-center mb-5 mt-3">
         <h1>Tra cứu phương tiện vi phạm giao thông</h1>
         <p class="lead">Hệ thống tra cứu thông tin vi phạm giao thông trực tuyến</p>
     </div>
