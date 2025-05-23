@@ -257,3 +257,18 @@ header.navbar.sticky-top {
         margin-left: 0;
     }
 }
+.dropdown-menu {
+    z-index: 9999 !important; /* Giá trị cao để đảm bảo hiển thị trên tất cả các phần tử khác */
+    position: absolute !important;
+}
+
+/* Đảm bảo dropdown toggle button có đủ không gian hiển thị menu */
+.dropdown {
+    position: relative;
+}
+
+/* Cải thiện vị trí của dropdown menu */
+.dropdown-menu-end {
+    right: 0;
+    left: auto !important;
+}
