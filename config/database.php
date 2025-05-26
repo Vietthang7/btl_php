@@ -1,6 +1,6 @@
 <?php
 $host = 'localhost';
-$dbname = 'btl_web';
+$dbname = 'php';
 $username = 'root';
 $password = '123456';
 
